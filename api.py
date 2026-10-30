@@ -233,15 +233,20 @@ class MovieBoxEngine:
             )
 
         x_user = resp.headers.get("x-user")
-        content_type = resp.headers.get("content-type", "unknown")
+content_type = resp.headers.get("content-type", "unknown")
 
-        print(
-            "[MovieBox bootstrap] "
-            f"status={resp.status_code} "
-            f"x_user_present={bool(x_user)} "
-            f"content_type={content_type[:100]}",
-            flush=True,
-        )
+print(
+    f"[MovieBox bootstrap] response_body={resp.text[:500]!r}",
+    flush=True
+)
+
+print(
+    "[MovieBox bootstrap] "
+    f"status={resp.status_code} "
+    f"x_user_present={bool(x_user)} "
+    f"content_type={content_type[:100]}",
+    flush=True,
+)
 
         if not x_user:
             raise HTTPException(
