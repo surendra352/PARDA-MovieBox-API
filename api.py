@@ -209,7 +209,7 @@ class MovieBoxEngine:
             cls._instance = MovieBoxEngine()
         return cls._instance
 
-        def bootstrap_token(self, force: bool = False) -> str:
+    def bootstrap_token(self, force: bool = False) -> str:
         if self.bearer_token and not force:
             return self.bearer_token
 
