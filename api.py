@@ -209,19 +209,67 @@ class MovieBoxEngine:
             cls._instance = MovieBoxEngine()
         return cls._instance
 
-    def bootstrap_token(self, force: bool = False) -> str:
+        def bootstrap_token(self, force: bool = False) -> str:
         if self.bearer_token and not force:
             return self.bearer_token
-        headers = build_auth_headers("GET", BOOTSTRAP_URL, device_id=self.device_id)
-        resp = self.session.get(BOOTSTRAP_URL, headers=headers, timeout=20)
+
+        headers = build_auth_headers(
+            "GET", BOOTSTRAP_URL, device_id=self.device_id
+        )
+
+        try:
+            resp = self.session.get(
+                BOOTSTRAP_URL, headers=headers, timeout=20
+            )
+        except Exception as exc:
+            print(
+                f"[MovieBox bootstrap] request_exception="
+                f"{type(exc).__name__}: {str(exc)[:240]}",
+                flush=True,
+            )
+            raise HTTPException(
+                status_code=502,
+                detail=f"MovieBox bootstrap request failed ({type(exc).__name__})",
+            )
+
         x_user = resp.headers.get("x-user")
+        content_type = resp.headers.get("content-type", "unknown")
+
+        print(
+            "[MovieBox bootstrap] "
+            f"status={resp.status_code} "
+            f"x_user_present={bool(x_user)} "
+            f"content_type={content_type[:100]}",
+            flush=True,
+        )
+
         if not x_user:
-            raise HTTPException(status_code=502, detail="Failed to bootstrap MovieBox token")
-        token_data = json.loads(x_user)
-        token = token_data.get("token")
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "MovieBox bootstrap returned no x-user token header "
+                    f"(upstream_status={resp.status_code})"
+                ),
+            )
+
+        try:
+            token_data = json.loads(x_user)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=502,
+                detail="MovieBox bootstrap returned invalid x-user JSON",
+            )
+
+        token = token_data.get("token") if isinstance(token_data, dict) else None
+
         if not token:
-            raise HTTPException(status_code=502, detail="Empty token in upstream header")
+            raise HTTPException(
+                status_code=502,
+                detail="MovieBox bootstrap x-user header did not contain a token",
+            )
+
         self.bearer_token = token
+        print("[MovieBox bootstrap] token acquired successfully", flush=True)
         return token
 
     def api_request(self, method: str, path_or_url: str, body_dict: Optional[Dict[str, Any]] = None, use_token: bool = True, retry_auth: bool = True) -> Dict[str, Any]:
